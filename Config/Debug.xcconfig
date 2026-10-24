@@ -1,0 +1,12 @@
+#include "Base.xcconfig"
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG
+ENABLE_TESTABILITY = YES
+GCC_OPTIMIZATION_LEVEL = 0
+
+// Disable the Xcode Previews debug-dylib harness in Debug. That harness embeds XCTest/Testing/
+// XCUIAutomation into AeriDay.app/Frameworks without Info.plists, failing the bundle Validate step
+// (error 65). The app depends only on AeriDayCore + AeriDayDesignSystem. Reversible build-config
+// setting only; Validate, signing and the compiler sandbox are untouched. Static SwiftUI previews
+// still work; only the executable-preview dylib path is turned off.
+ENABLE_DEBUG_DYLIB = NO
+

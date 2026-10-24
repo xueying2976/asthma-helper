@@ -1,0 +1,17 @@
+.DS_Store
+*.xcworkspace/xcuserdata/
+*.xcodeproj/
+DerivedData/
+.build/
+.swiftpm/
+*.xccheckout
+*.xcuserstate
+
+
+# Local dependency installation and frontend build caches
+**/node_modules/
+**/dist-mobile/
+**/.output/
+
+# stray xcodebuild -target output
+/build/

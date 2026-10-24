@@ -1,0 +1,43 @@
+import asyncio,os
+from pathlib import Path
+from playwright.async_api import async_playwright
+ROOT=Path(__file__).parent
+SCREENSHOTS=Path(os.environ.get('AERIDAY_SCREENSHOTS','/tmp/browser/aeriday-v6'))
+SCREENSHOTS.mkdir(parents=True,exist_ok=True)
+async def main():
+ async with async_playwright() as p:
+  browser=await p.chromium.launch(headless=True)
+  for width,large,dark in [(390,False,False),(320,True,True)]:
+   context=await browser.new_context(viewport={'width':width,'height':844},color_scheme='dark' if dark else 'light')
+   await context.add_init_script(path=str(ROOT/'syntheticBridge.js'))
+   page=await context.new_page(); errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+   await page.goto('http://localhost:8090');await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
+   if large: await page.get_by_role('button',name='Text',exact=True).click()
+   await page.screenshot(path=str(SCREENSHOTS/f'today-{width}.png'))
+   assert await page.get_by_text('Demo data',exact=True).count()==1
+   assert await page.get_by_role('button',name='Language / 语言').count()==0
+   async def audit():
+    small=await page.evaluate('''() => [...document.querySelectorAll('button,input,select,textarea,summary')].filter(e=>e.getClientRects().length && !e.disabled).map(e=>({name:e.getAttribute('aria-label')||e.innerText||e.labels?.[0]?.innerText,w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height})).filter(e=>e.w<43.9||e.h<43.9)''')
+    assert not small,small
+    assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+   await audit()
+   await page.get_by_role('button',name='Synthetic respiratory-rate change').click();await page.get_by_text('Possible meaning and alternatives',exact=True).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'finding-{width}.png'));await audit()
+   await page.get_by_role('button',name='View evidence').click();await page.get_by_text('Offline synthetic citation',exact=True).wait_for();await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
+   await page.get_by_role('button',name='Respiratory check-in',exact=True).click();await page.get_by_label('Context',exact=True).fill('Trial cough context');await audit();await page.screenshot(path=str(SCREENSHOTS/f'symptom-{width}.png'));await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click()
+   await page.get_by_role('navigation').get_by_role('button',name='History',exact=True).click();await page.get_by_role('button',name='Cough: unknown').click();await page.get_by_label('Context',exact=True).fill('Edited context');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_role('button',name='Cough: unknown').click();await page.get_by_role('button',name='Delete record',exact=True).click();await page.get_by_role('button',name='Confirm delete record',exact=True).click()
+   await page.get_by_role('button',name='Add peak flow',exact=True).click();await page.get_by_label('Peak flow · L/min',exact=True).fill('300');await page.get_by_label('Device',exact=True).fill('Trial meter');await page.get_by_label('Personal best · L/min (optional)',exact=True).fill('500');assert await page.get_by_text('60% of clinician-confirmed personal best',exact=True).count()==0
+   await page.get_by_role('group',name='Personal best confirmed by a clinician',exact=True).get_by_role('button',name='Yes',exact=True).click();await page.get_by_text('60% of clinician-confirmed personal best',exact=True).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'peak-{width}.png'));await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click()
+   await page.get_by_role('button',name='300 L/min').click();await page.get_by_label('Peak flow · L/min',exact=True).fill('320');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_role('button',name='320 L/min').click();await page.get_by_role('button',name='Delete record',exact=True).click();await page.get_by_role('button',name='Confirm delete record',exact=True).click()
+   await page.get_by_role('navigation').get_by_role('button',name='Medications',exact=True).click();await page.get_by_role('button',name='Record actual use',exact=True).click();await page.get_by_label('Medication name',exact=True).fill('Trial inhaler');await page.get_by_label('Amount used',exact=True).fill('2');await audit();await page.screenshot(path=str(SCREENSHOTS/f'use-{width}.png'));await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();assert await page.evaluate('window.__snapshot.medications[0].remainingDoses')==120
+   await page.get_by_role('button',name='Trial inhaler · 2 puff').click();await page.get_by_label('Amount used',exact=True).fill('3');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_role('button',name='Trial inhaler · 3 puff').click();await page.get_by_role('button',name='Delete record',exact=True).click();await page.get_by_role('button',name='Confirm delete record',exact=True).click()
+   await page.get_by_role('button',name='Edit',exact=True).click();await page.get_by_role('group',name='Reminder',exact=True).get_by_role('button',name='On',exact=True).click();await page.get_by_label('Reminder time (HH:MM)',exact=True).fill('08:00');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click()
+   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=False).last.click();await page.get_by_role('dialog').get_by_role('button',name='90 days',exact=True).click();await page.get_by_role('dialog').get_by_role('img',name='Respiratory rate daily series',exact=False).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'series-{width}.png'));await audit();await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
+   await page.get_by_role('navigation').get_by_role('button',name='More',exact=True).click();await audit();await page.screenshot(path=str(SCREENSHOTS/f'more-{width}.png'));await page.get_by_role('group',name='Analysis',exact=True).get_by_role('button',name='Off',exact=True).click();await page.wait_for_timeout(100);assert await page.evaluate('window.__insights.enabled')==False;await page.get_by_role('group',name='Analysis',exact=True).get_by_role('button',name='On',exact=True).click();await page.wait_for_timeout(100)
+   await page.get_by_role('navigation').get_by_role('button',name='History',exact=True).click();await page.get_by_role('button',name='Add respiratory check-in',exact=True).click();await page.evaluate('window.__failWrite=true');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_text('Could not complete the change. Current records refreshed; check for a partial save before retrying.',exact=True).wait_for();await page.get_by_role('dialog').get_by_role('button',name='Cancel',exact=True).click();assert await page.evaluate('window.__insights.records.symptomCheckIns.length')==1
+   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.evaluate("window.__case='empty'");await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_text('No findings supplied. This does not mean it is safe to wait.',exact=True).wait_for();await page.evaluate("window.__case='error'");await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_role('button',name='Retry insights',exact=True).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'error-{width}.png'));await page.evaluate("window.__case='changes'");await page.get_by_role('button',name='Retry insights',exact=True).click();await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
+   assert not errors,errors
+   calls=await page.evaluate('window.__calls.map(r=>r.method)');assert 'setLanguage' not in calls
+   print('PASS',width,'large' if large else 'standard',sorted(set(calls)))
+   await context.close()
+  context=await browser.new_context(viewport={'width':1280,'height':1800});page=await context.new_page();await page.goto('http://localhost:8080');await page.get_by_role('navigation').first.wait_for();assert 'Prototype' in await page.title();await page.screenshot(path=str(SCREENSHOTS/'web.png'));print('Web workbench rendered',await page.title());await browser.close()
+asyncio.run(main())

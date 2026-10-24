@@ -1,0 +1,52 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "comment" : "Bundle display name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AeriDay"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "息晴"
+          }
+        }
+      }
+    },
+    "CFBundleName" : {
+      "comment" : "Bundle name",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "AeriDay"
+          }
+        }
+      }
+    },
+    "NSHealthShareUsageDescription" : {
+      "comment" : "Privacy - Health Share Usage Description",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AeriDay reads respiratory rate, resting heart rate, sleep, oxygen saturation, steps, and workouts to show recent trends and data sources on this iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AeriDay 会读取你的呼吸频率、静息心率、睡眠、血氧、步数和训练数据，用于在这台 iPhone 上显示近期趋势和数据来源。"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

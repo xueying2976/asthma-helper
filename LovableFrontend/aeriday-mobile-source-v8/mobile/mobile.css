@@ -1,0 +1,108 @@
+/* iOS shell only: full-bleed with safe-area insets. Visual tokens come from src/styles.css. */
+/* Bundled offline Simplified Chinese font (Noto Sans SC, OFL). CJK ranges only; never fetched remotely. */
+@import "./fonts/noto-sans-sc/noto-sans-sc.css";
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+/* "AeriDay CJK" is first and limited to CJK ranges, so Chinese always uses the bundled font
+   while Latin text keeps the existing system font. */
+html,
+body,
+.aeri-mobile-shell {
+  font-family: "AeriDay CJK", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+.aeri-mobile-shell {
+  height: var(--aeri-mobile-visible-height, 100%);
+  display: flex;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--aeri-paper);
+}
+
+/* Controls, portalled sheets and chart labels use the same stack. */
+.aeri-mobile-shell *,
+[data-radix-portal] *,
+[role="dialog"],
+[role="dialog"] *,
+button,
+input,
+textarea,
+select,
+svg text {
+  font-family: "AeriDay CJK", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+/* iOS zooms on focus when an input is below 16px, pushing save controls under the keyboard.
+   Fields keep their own size when it is already larger (e.g. large text). Labels are unchanged. */
+.aeri-mobile-shell input,
+.aeri-mobile-shell textarea,
+.aeri-mobile-shell select,
+[role="dialog"] input,
+[role="dialog"] textarea,
+[role="dialog"] select {
+  font-size: 16px;
+}
+.aeri-mobile-shell input.t-meta,
+.aeri-mobile-shell textarea.t-meta,
+[role="dialog"] input.t-meta,
+[role="dialog"] textarea.t-meta {
+  font-size: max(16px, var(--aeri-fs-meta));
+}
+.aeri-mobile-shell input.t-body,
+.aeri-mobile-shell textarea.t-body,
+[role="dialog"] input.t-body,
+[role="dialog"] textarea.t-body {
+  font-size: max(16px, var(--aeri-fs-body));
+}
+
+/* Mobile-only hit boxes; icon dimensions and the web workbench stay unchanged. */
+.aeri-mobile-shell :is(button, a, input, select, textarea, summary, [role="button"]) {
+  min-width: 44px;
+  min-height: 44px;
+}
+.aeri-mobile-shell button {
+  white-space: normal;
+}
+.aeri-mobile-shell input[type="datetime-local"] {
+  max-width: 100%;
+}
+.aeri-mobile-shell [role="dialog"] input {
+  scroll-margin-block: 24px;
+}
+.aeri-mobile-shell :is(button, [role="dialog"]) :is(.truncate, .min-w-0) {
+  overflow-wrap: anywhere;
+}
+.aeri-mobile-shell .truncate {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+.aeri-mobile-shell nav button {
+  width: 100%;
+}
+.aeri-mobile-shell nav button span {
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}
+/* Give five labelled tabs room at narrow widths; every cell remains ≥44px. */
+.aeri-mobile-shell nav {
+  padding-inline: 8px;
+}
+.aeri-mobile-shell nav > div {
+  gap: 0;
+  padding-inline: 4px;
+}
+.aeri-mobile-shell button:focus-visible,
+.aeri-mobile-shell summary:focus-visible {
+  outline: 2px solid var(--aeri-blue);
+  outline-offset: -2px;
+}

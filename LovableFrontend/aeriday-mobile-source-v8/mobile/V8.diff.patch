@@ -1,0 +1,681 @@
+--- a/src/components/aeriday/AeriDayApp.tsx
++++ b/src/components/aeriday/AeriDayApp.tsx
+@@ -7,10 +7,7 @@
+ import type { Variant } from "./ui";
+ import type { Scenario } from "@/lib/aeriday/scenarios";
+ import { HistoryExperience, TrendsExperience } from "./TrendsExperience";
+-import { NativeHistory, NativeMeds, NativeMore, NativeToday } from "./NativeScreens";
+ import { InsightsProvider } from "./InsightsProvider";
+-import { AnalysisSettings, ActualUseEntry, InsightsTrends, StructuredHistory } from "./PersonalInsights";
+-import { DoctorVisitEntry } from './DoctorVisit';
+ 
+ export type Tab = "today" | "log" | "meds" | "trends" | "more";
+ 
+@@ -88,23 +85,11 @@
+         </header>
+ 
+         <div key={tab} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pt-2 pb-24">
+-          {native ? (
+-            <>
+-              {tab === "today" ? <NativeToday variant={variant} lang={lang} onGo={setTab} /> : null}
+-              {tab === "log" ? <><StructuredHistory /><NativeHistory variant={variant} lang={lang} /></> : null}
+-              {tab === "meds" ? <><ActualUseEntry /><NativeMeds variant={variant} lang={lang} /></> : null}
+-              {tab === "trends" ? <InsightsTrends /> : null}
+-              {tab === "more" ? <><DoctorVisitEntry /><AnalysisSettings /><NativeMore variant={variant} lang={lang} hideLanguage={nativeEnglishTrial} /></> : null}
+-            </>
+-          ) : (
+-            <>
+-              {tab === "today" ? <TodayBody variant={variant} lang={lang} /> : null}
+-              {tab === "log" ? <HistoryExperience lang={lang} /> : null}
+-              {tab === "meds" ? <MedsBody variant={variant} lang={lang} /> : null}
+-              {tab === "trends" ? <TrendsExperience lang={lang} /> : null}
+-              {tab === "more" ? <MoreBody variant={variant} lang={lang} /> : null}
+-            </>
+-          )}
++          {tab === "today" ? <TodayBody variant={variant} lang={lang} /> : null}
++          {tab === "log" ? <HistoryExperience lang={lang} /> : null}
++          {tab === "meds" ? <MedsBody variant={variant} lang={lang} /> : null}
++          {tab === "trends" ? <TrendsExperience lang={lang} /> : null}
++          {tab === "more" ? <MoreBody variant={variant} lang={lang} hideLanguage={nativeEnglishTrial} /> : null}
+         </div>
+ 
+         <nav className="pointer-events-none absolute inset-x-0 bottom-0 px-4 pb-4">
+--- a/src/components/aeriday/TodayScreen.tsx
++++ b/src/components/aeriday/TodayScreen.tsx
+@@ -4,6 +4,8 @@
+ import { d as dd } from "@/lib/aeriday/copy3";
+ import { ahStatusKey } from "@/lib/aeriday/today";
+ import { todayMetrics } from "@/lib/aeriday/scenarios";
++import { AirflowMotif, DashboardBlock as Block } from "./previewLayouts";
++import { NativeTodayContent } from "./NativeScreens";
+ import { RecentChanges } from "./TrendsExperience";
+ import { Button } from "@/components/ui/button";
+ import type { Level } from "@/lib/aeriday/data";
+@@ -50,22 +52,6 @@
+ 
+ type Props = { variant: Variant; lang: Lang };
+ 
+-/** Quiet original airflow line motif — decorative only, low contrast. */
+-function AirflowMotif() {
+-  return (
+-    <svg
+-      viewBox="0 0 200 80"
+-      aria-hidden="true"
+-      className="pointer-events-none absolute -top-3 right-0 h-16 w-44 text-aeri-blue opacity-[0.12]"
+-      fill="none"
+-    >
+-      <path d="M4 22c34-14 62 10 96 0 18-5 30-14 46-10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+-      <path d="M12 42c38-12 66 12 100 2 16-5 28-12 44-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+-      <path d="M28 62c32-10 58 8 88 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+-    </svg>
+-  );
+-}
+-
+ /** Small accessible info affordance — opens a concise explanation sheet. */
+ function InfoDot({
+   lang,
+@@ -91,30 +77,6 @@
+   );
+ }
+ 
+-/** Hairline-divided section inside the open dashboard composition. */
+-function Block({
+-  title,
+-  meta,
+-  info,
+-  children,
+-}: {
+-  title: string;
+-  meta?: string;
+-  info?: React.ReactNode;
+-  children: React.ReactNode;
+-}) {
+-  return (
+-    <section className="border-t border-aeri-line pt-3.5">
+-      <div className="flex items-center gap-1">
+-        <h3 className="t-cap text-aeri-slate">{title}</h3>
+-        {info}
+-        {meta ? <span className="t-meta ml-auto shrink-0 text-aeri-slate">{meta}</span> : null}
+-      </div>
+-      <div className="mt-2">{children}</div>
+-    </section>
+-  );
+-}
+-
+ const ahIcon: Record<string, IconCmp> = {
+   rr: IconBreath,
+   rhr: IconHeartLine,
+@@ -137,7 +99,7 @@
+   const k = u[lang];
+   const g = dd[lang];
+   const zh = lang === "zh";
+-  const { checkin, nothingToNote, markNothingToNote, zone, openSheet, scenario, showTrends } = useAeri();
++  const { checkin, nothingToNote, markNothingToNote, zone, openSheet, scenario, showTrends, native } = useAeri();
+   const ahMetrics = todayMetrics(scenario);
+ 
+   const reported = checkin
+@@ -155,6 +117,8 @@
+         : zone === "red"
+           ? k.planZoneRed
+           : g.planUnset;
++
++  if (native) return <NativeTodayContent variant={variant} lang={lang} />;
+ 
+   return (
+     <>
+--- a/src/components/aeriday/NativeScreens.tsx
++++ b/src/components/aeriday/NativeScreens.tsx
+@@ -1,16 +1,20 @@
+ /**
+- * iOS-shell versions of Today, Medications, History and More.
+- * Built only from the existing primitives (Card, Panel, Row, ActionRow, Sheet…),
+- * so the look matches the prototype. All values come from the native snapshot;
++ * Native facts and operation adapters mounted inside the shared preview screens.
++ * Layout shells come from the browser preview; native editors retain real CRUD.
++ * All values come from the native snapshot;
+  * services that aren't connected show as unavailable — never as sample facts.
+  */
+-import { useRef, useState } from "react";
++import { useRef, useState, type ReactNode } from "react";
+ import type { Lang } from "@/lib/aeriday/copy";
+ import { getMetrics, metricValue } from "@/lib/aeriday/scenarios";
+ import { callNative, type MedUnit, type NativeMedication, type NativeNote } from "@/lib/aeriday/nativeBridge";
+ import { fmtLocal, medUnits, nc, pad2, unitLabel } from "@/lib/aeriday/nativeCopy";
+ import {
+   IconAir,
++  IconBreath,
++  IconClipboard,
++  IconChevron,
++  IconMoon,
+   IconDashedCircle,
+   IconDrop,
+   IconHeartLine,
+@@ -25,7 +29,11 @@
+ import { Card, Divider, Panel, PrimaryButton, Tag, type Variant } from "./ui";
+ import { ActionRow, ChoiceGroup, Sheet, SheetButton, Stepper, TextField } from "./kit";
+ import { useAeri, type NativeLink } from "./state";
+-import { InsightsToday } from "./PersonalInsights";
++import { NativeRecentChanges } from "./PersonalInsights";
++import { useInsights } from "./InsightsProvider";
++import { sourceIsAmbiguous, safetySentence } from "@/lib/aeriday/insights";
++import { RecordEditor } from "./InsightRecords";
++import { AirflowMotif, DashboardBlock, HistorySection } from "./previewLayouts";
+ import { saveMedicineThenReminder, writeAndRefresh } from "@/lib/aeriday/nativeOperations";
+ import { Button } from "@/components/ui/button";
+ 
+@@ -77,77 +85,26 @@
+ 
+ /* ---------------- Today ---------------- */
+ 
+-export function NativeToday({ variant, lang, onGo }: Props & { onGo: (t: "meds" | "log") => void }) {
+-  const t = nc[lang];
+-  const n = useNative();
+-  const { showTrends, scenario } = useAeri();
+-  const metrics = getMetrics(scenario).filter((m) => ["rr", "rhr", "sleep", "spo2", "steps", "workout"].includes(m.id));
+-  const meds = n.snapshot.medications;
+-
+-  return (
+-    <>
+-      <InsightsToday />
+-
+-      <Card variant={variant} className="py-4">
+-        <h2 className="t-title font-semibold tracking-tight">{t.today}</h2>
+-        <p className="t-meta text-aeri-slate">
+-          {t.updated} {fmtLocal(n.snapshot.generatedAt, lang)}
+-        </p>
+-
+-        <div className="mt-3.5 flex items-center gap-2 border-t border-aeri-line pt-3.5">
+-          <IconDashedCircle className="size-5 shrink-0 text-aeri-slate" />
+-          <div className="min-w-0">
+-            <p className="t-cap text-aeri-slate">{t.envTitle}</p>
+-            <p className="t-meta italic text-aeri-slate">{t.envOff}</p>
+-          </div>
+-        </div>
+-
+-        <div className="mt-3.5 border-t border-aeri-line pt-3.5">
+-          <p className="t-cap text-aeri-slate">{t.medsToday}</p>
+-          {meds.length ? (
+-            <ul className="mt-1">
+-              {meds.map((m, i) => (
+-                <li key={m.id}>
+-                  {i > 0 ? <Divider /> : null}
+-                  <ActionRow
+-                    Icon={IconMeds}
+-                    title={m.name}
+-                    subtitle={[reminderText(m, lang), leftText(m, lang)].filter(Boolean).join(" · ")}
+-                    onClick={() => onGo("meds")}
+-                  />
+-                </li>
+-              ))}
+-            </ul>
+-          ) : (
+-            <ActionRow Icon={IconMeds} title={t.noMeds} subtitle={t.addMed} onClick={() => onGo("meds")} />
+-          )}
+-        </div>
+-
+-        <div className="mt-3.5 border-t border-aeri-line pt-3.5">
+-          <div className="flex items-center justify-between">
+-            <p className="t-cap text-aeri-slate">{t.healthTitle}</p>
+-            <button type="button" onClick={() => showTrends("rr")} className="t-meta min-h-11 font-medium text-aeri-teal">
+-              {t.seeAll}
+-            </button>
+-          </div>
+-          <ul>
+-            {metrics.map((m, i) => (
+-              <li key={m.id}>
+-                {i > 0 ? <Divider /> : null}
+-                <ActionRow
+-                  Icon={m.status === "insufficient" || m.status === "changed" ? IconDashedCircle : IconHeartLine}
+-                  title={lang === "zh" ? m.zh : m.en}
+-                  subtitle={`${metricValue(m, lang)} · ${m.sourceLabel || t.sourceUnknown}${m.sampledAt ? ` · ${fmtLocal(m.sampledAt, lang)}` : ""}` }
+-                  onClick={() => showTrends(m.id)}
+-                />
+-              </li>
+-            ))}
+-          </ul>
+-        </div>
+-      </Card>
+-
+-    </>
+-  );
++export function NativeTodayContent({ variant, lang }: Props) {
++  const n = useNative(); const { openSheet, showTrends } = useAeri(); const { data, status } = useInsights();
++  const sample = (id: string) => n.snapshot.metrics.find((m) => m.id === id);
++  const unavailable = (title: string, body: string) => openSheet(<MsgSheet lang={lang} title={title} body={[body]} />);
++  return <>
++    <NativeRecentChanges />
++    <Card variant={variant} className="relative overflow-hidden py-4">
++      <AirflowMotif />
++      <div className="relative flex items-center gap-1"><h2 className="t-title font-semibold tracking-tight">Today</h2><Button variant="ghost" size="icon" aria-label="About environment" className="size-11 shrink-0 text-aeri-slate" onClick={() => unavailable('Environment', nc[lang].envOff)}><IconInfo className="size-4" /></Button></div>
++      <p className="relative t-meta text-aeri-slate">Updated {fmtLocal(n.snapshot.generatedAt, lang)}</p>
++      <div className="relative mt-3.5 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3"><div className="min-w-0"><p className="t-cap text-aeri-slate">Air quality</p><p className="t-hero font-semibold tracking-tight tabular-nums text-aeri-slate">— <span className="t-body font-medium">AQI</span></p><p className="t-meta text-aeri-slate">Unavailable · No connected source</p></div><IconDashedCircle className="size-5 shrink-0 text-aeri-slate" /></div>
++      <div className="aeri-adapt-grid mt-3.5 grid grid-cols-2 gap-3 border-t border-aeri-line pt-3.5"><div><p className="t-cap text-aeri-slate">Pollen</p><p className="t-body font-semibold">—</p><p className="t-meta text-aeri-slate">Unavailable</p></div><div><p className="t-cap text-aeri-slate">Weather</p><p className="t-body font-semibold">—</p><p className="t-meta text-aeri-slate">Unavailable</p></div></div>
++      <div className="mt-3.5"><DashboardBlock title="Medications today">{n.snapshot.medications.length ? n.snapshot.medications.map((m) => <div key={m.id} className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-2.5"><IconMeds className="mt-3 size-5 shrink-0 text-aeri-blue" /><div className="min-w-0"><Button variant="ghost" className="t-body h-auto min-h-11 w-full justify-start whitespace-normal px-0 text-left" onClick={() => openSheet(<MedEditSheet lang={lang} med={m} />)}>{m.name}</Button><p className="t-meta text-aeri-slate">Reminder {reminderText(m, lang)}</p><p className="t-meta text-aeri-slate">{leftText(m, lang) ?? 'Inventory not supplied'} · {m.confirmed ? 'You confirmed' : 'Not confirmed'}</p></div></div>) : <ActionRow Icon={IconMeds} title={nc[lang].noMeds} subtitle={nc[lang].addMed} onClick={() => openSheet(<MedEditSheet lang={lang} />)} />}</DashboardBlock></div>
++      <section className="mt-3.5 border-t border-aeri-line pt-3.5"><div className="flex items-center gap-2"><h3 className="t-cap text-aeri-slate">Health trends</h3><Button variant="ghost" className="t-meta ml-auto min-h-11 px-0 text-aeri-blue" onClick={() => showTrends('rr')}>See all <IconChevron className="size-4" /></Button></div><ul className="mt-1.5 space-y-3">{['rr','rhr'].map((id) => { const m = sample(id); const ambiguous = sourceIsAmbiguous(data?.sourceOptions.find((o) => o.metricId === id)); return <li key={id}><div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5"><IconHeartLine className="mt-3 size-5 shrink-0 text-aeri-slate" /><div className="min-w-0"><Button variant="ghost" className="t-body h-auto min-h-11 w-full justify-start whitespace-normal px-0 text-left" onClick={() => showTrends(id)}>{id === 'rr' ? 'Respiratory rate' : 'Resting heart rate'}</Button><p className="t-meta text-aeri-slate">{ambiguous ? 'Multiple sources · Choose in More' : m?.current != null ? 'Latest sample' : 'No sample supplied'}</p></div><span className="t-body pt-3 text-right font-semibold tabular-nums">{m?.current ?? '—'}<span className="t-meta ml-1 font-normal text-aeri-slate">{m?.unit ?? ''}</span></span></div></li>; })}</ul></section>
++    </Card>
++    <Button variant="ghost" className="grid h-auto min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5 whitespace-normal rounded-2xl border border-aeri-line px-3.5 py-3 text-left" onClick={() => unavailable('Action plan', 'No clinician-authored action plan is supplied by this native contract. No plan or treatment advice is generated here.')}><IconClipboard className="size-5 text-aeri-blue" /><span><span className="t-body block font-medium">Action plan</span><span className="t-meta block text-aeri-slate">Not supplied · Clinician-authored plan unavailable</span></span><IconChevron className="size-5 text-aeri-slate" /></Button>
++    <Card variant={variant} className="py-3.5"><div className="flex items-center gap-2.5"><IconBreath className="size-5 shrink-0 text-aeri-blue" /><p className="t-body min-w-0 break-words font-medium">Anything unusual today?</p></div>{status === 'ready' && data ? <p className="t-meta mt-2 text-aeri-slate">{data.context.summary}</p> : null}<div className="aeri-adapt-grid mt-3 grid grid-cols-2 gap-2"><Button variant="outline" className="t-meta h-auto min-h-11 whitespace-normal rounded-xl border-aeri-line bg-aeri-surface px-3 py-2 text-aeri-ink hover:bg-aeri-mist hover:text-aeri-ink" onClick={() => openSheet(<RecordEditor kind="symptom" />)}>Review symptoms</Button><Button className="t-meta h-auto min-h-11 whitespace-normal rounded-xl bg-aeri-teal px-3 py-2 text-aeri-teal-fg" onClick={() => openSheet(<RecordEditor kind="symptom" />)}>Respiratory check-in</Button></div></Card>
++    <p className="t-meta px-1 text-aeri-slate">{safetySentence}</p>
++    <Button variant="ghost" className="grid h-auto min-h-11 w-full grid-cols-[auto_minmax(0,1fr)_auto] gap-2.5 rounded-2xl px-3.5 py-3 text-left text-aeri-slate" onClick={() => unavailable('Ask AI', 'Unavailable. No records are sent off this iPhone.')}><IconAir className="size-5" /><span className="t-body">Ask AI · Unavailable</span><IconChevron className="size-5" /></Button>
++  </>;
+ }
+ 
+ /* ---------------- Medications ---------------- */
+@@ -228,7 +185,7 @@
+   );
+ }
+ 
+-export function NativeMeds({ variant, lang }: Props) {
++export function NativeMeds({ variant, lang, actualUse }: Props & { actualUse?: ReactNode }) {
+   const t = nc[lang];
+   const n = useNative();
+   const { openSheet } = useAeri();
+@@ -237,7 +194,9 @@
+ 
+   return (
+     <>
+-      <Panel variant={variant} title={t.medsToday}>
++      <Panel variant={variant} title="Today’s schedule"><ul>{meds.map((m,i) => <li key={m.id}>{i > 0 ? <Divider /> : null}<ActionRow Icon={IconMoon} title={m.name} subtitle={`Reminder ${reminderText(m,lang)}`} onClick={() => openSheet(<MedEditSheet lang={lang} med={m} />)} /></li>)}</ul>{!meds.length ? <p className="t-meta text-aeri-slate">No medication reminders supplied.</p> : null}<p className="t-meta mt-2 text-aeri-slate">Reminders do not establish actual use.</p></Panel>
++      {actualUse}
++      <Panel variant={variant} title="Inventory">
+         {meds.length ? (
+           <ul className="space-y-4">
+             {meds.map((m) => (
+@@ -351,7 +310,7 @@
+ 
+   return (
+     <>
+-      <Panel variant={variant} title={t.notes}>
++      <HistorySection title={t.notes}>
+         {notes.length ? (
+           <ul>
+             {notes.map((x, i) => (
+@@ -374,7 +333,7 @@
+             + {t.addNote}
+           </PrimaryButton>
+         </div>
+-      </Panel>
++      </HistorySection>
+       <Card variant={variant} className="py-2">
+         <ActionRow
+           Icon={IconHeartLine}
+--- a/src/components/aeriday/PersonalInsights.tsx
++++ b/src/components/aeriday/PersonalInsights.tsx
+@@ -1,3 +1,4 @@
++import { RecentChangesLayout, MetricChartLayout, HistorySection } from "./previewLayouts";
+ import { useEffect, useState } from 'react';
+ import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+ import { Button } from '@/components/ui/button';
+@@ -9,7 +10,7 @@
+ import { Card, Divider, Panel } from './ui';
+ import { ActionRow, ChoiceGroup, Sheet } from './kit';
+ import { RecordEditor, recordNames, recordSummary, type RecordKind } from './InsightRecords';
+-import { IconHeartLine, IconInfo, IconLog } from './icons';
++import { IconHeartLine, IconInfo, IconLog, IconBreath, IconTrends } from './icons';
+ const actionClass = 't-body h-auto min-h-11 w-full rounded-2xl border border-aeri-line px-4 py-3 text-aeri-ink';
+ function Experimental() { return <p className="t-cap font-semibold text-aeri-slate">Experimental · Personal Change Insights</p>; }
+ export function InsightsStatus() {
+@@ -89,18 +90,18 @@
+     {confirm && !busy ? <Button variant="ghost" className={`${actionClass} hover:bg-aeri-surface hover:text-aeri-ink`} onClick={() => setConfirm(false)}>Cancel rebuild</Button> : null}
+   </div>;
+ }
+-function DailySeries({ series }: { series: MetricSeries }) {
++function DailySeries({ series, compact = false }: { series: MetricSeries; compact?: boolean }) {
+   const band = visibleReferenceBand(series);
+   const rows = [...series.points].sort((a, b) => a.date.localeCompare(b.date));
+   const valid = rows.filter((p) => p.value !== null);
+   return <>
+     <p className="t-meta text-aeri-slate">Source: {series.sourceId ?? 'Not supplied'} · {valid.length}/{rows.length} supplied points with values</p>
+-    <ReferenceDetails series={series} />
++    {compact ? <p className="t-meta text-aeri-slate">Personal historical reference: {series.reference ? `${series.reference.median} ${series.unit}` : "Not available"}</p> : <ReferenceDetails series={series} />}
+     {valid.length ? <div className="h-52 w-full min-w-0" role="img" aria-label={`${metricNames[series.metricId]} daily series in ${series.unit}. Gaps are not connected.`}><ResponsiveContainer width="100%" height="100%"><LineChart data={rows} margin={{ top: 12, right: 12, bottom: 12, left: 0 }}><CartesianGrid stroke="var(--aeri-line)" vertical={false} /><XAxis dataKey="date" tickFormatter={(v: string) => new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} tick={{ fill: 'var(--aeri-slate)', fontSize: 11 }} minTickGap={24} /><YAxis width={42} tick={{ fill: 'var(--aeri-slate)', fontSize: 11 }} domain={['auto', 'auto']} /><Tooltip contentStyle={{ background: 'var(--aeri-surface)', borderColor: 'var(--aeri-line)', color: 'var(--aeri-ink)' }} labelFormatter={(v) => fmtLocal(String(v), 'en')} />{band ? <ReferenceArea y1={band.lower} y2={band.upper} fill="var(--aeri-line)" fillOpacity={0.5} /> : null}{series.reference !== null ? <ReferenceLine y={series.reference.median} stroke="var(--aeri-slate)" strokeDasharray="4 4" /> : null}<Line dataKey="value" stroke="var(--aeri-blue)" strokeWidth={2} connectNulls={false} dot={false} isAnimationActive={false} /></LineChart></ResponsiveContainer></div> : <p className="t-body">No daily values available.</p>}
+     <details className="min-w-0"><summary className="t-body min-h-11 py-3">Daily values and quality · {series.unit}</summary><div className="space-y-2">{rows.map((p, index) => <p key={`${p.date}-${index}`} className="t-meta break-words">{fmtLocal(p.date, 'en')} · {p.value === null ? 'Missing' : `${p.value} ${series.unit}`} · {p.quality}</p>)}</div></details>
+   </>;
+ }
+-function SeriesSheet({ metricId }: { metricId: InsightMetric }) {
++export function SeriesSheet({ metricId }: { metricId: InsightMetric }) {
+   const { closeSheet } = useAeri(); const { data } = useInsights();
+   const ambiguous = sourceIsAmbiguous(data?.sourceOptions.find((o) => o.metricId === metricId));
+   const [days, setDays] = useState<7 | 30 | 90>(7); const [series, setSeries] = useState<MetricSeries | null>(null); const [status, setStatus] = useState('loading'); const [retry, setRetry] = useState(0);
+@@ -115,16 +116,35 @@
+     {!ambiguous && data?.findings.filter((f) => f.metricId === metricId).map((f) => <div key={f.id} className="space-y-2"><p className="t-body">{f.observation}</p><Coverage finding={f} /><p className="t-meta text-aeri-slate">{f.limitations}</p></div>)}
+   </Sheet>;
+ }
++export function NativeRecentChanges() {
++  const { data, status } = useInsights(); const { native, openSheet, showTrends } = useAeri();
++  return <RecentChangesLayout title="Recent changes" badge="Experimental" date={data ? fmtLocal(data.generatedAt,'en') : native ? fmtLocal(native.snapshot.generatedAt,'en') : ''} onView={() => showTrends('rr')} viewLabel="View changes">
++    <InsightsStatus />
++    {status === 'ready' && data ? <><p className="t-meta mt-2 text-aeri-slate">{data.summary || 'No summary supplied.'}</p><p className="t-meta text-aeri-slate">History: {data.historyState}</p>{!data.enabled ? <p className="t-meta">Analysis is off. Manage it in More.</p> : data.findings.length ? <ul className="t-meta mt-2 space-y-1">{data.findings.slice(0,3).map((f) => <li key={f.id}>{sourceIsAmbiguous(data.sourceOptions.find((o) => o.metricId === f.metricId)) ? <p>{metricNames[f.metricId]}: Multiple sources · Choose a source in More.</p> : <><Button variant="ghost" className="t-meta flex h-auto min-h-11 w-full flex-wrap justify-between gap-x-3 whitespace-normal px-0 text-left" onClick={() => openSheet(<FindingSheet finding={f} />)}><span>{f.title}</span><span className="font-semibold tabular-nums">{f.current ?? '—'} {f.unit}<span className="font-normal text-aeri-slate"> · reference {f.baseline ?? 'unavailable'}</span></span></Button><p className="t-meta text-aeri-slate">{stateNames[f.state]}</p></>}</li>)}</ul> : <p className="t-meta mt-2">No findings supplied. This does not mean it is safe to wait.</p>}</> : null}
++  </RecentChangesLayout>;
++}
++function InlineNativeSeries({ metricId, days }: { metricId: InsightMetric; days: 7 | 30 | 90 }) {
++  const { data, status } = useInsights(); const [series,setSeries] = useState<MetricSeries | null>(null); const [state,setState] = useState('loading'); const [retry,setRetry] = useState(0);
++  const ambiguous = sourceIsAmbiguous(data?.sourceOptions.find((o) => o.metricId === metricId));
++  useEffect(() => { let active = true; setSeries(null); setState('loading'); if (status !== 'ready' || !data?.enabled || ambiguous) return () => { active = false; }; callNative('getMetricSeries',{metricId,days}).then((r) => { if (!active) return; if(r.metricId !== metricId) throw new Error('Wrong metric'); setSeries(r);setState('ready'); }).catch(() => { if(active)setState('error'); }); return () => { active = false; }; },[metricId,days,retry,status,data,ambiguous]);
++  if(ambiguous) return <p className="t-body">Multiple sources · Choose a source in More. No sources are merged.</p>;
++  if(status !== 'ready') return <p className="t-meta text-aeri-slate">Daily analysis awaits insights.</p>;
++  if(!data?.enabled) return <p className="t-meta">Analysis is off.</p>;
++  return state === 'loading' ? <p role="status" className="t-meta">Reading daily series…</p> : state === 'error' ? <><p role="alert" className="t-meta">Could not read this series. No demo values are shown.</p><Button variant="ghost" className={actionClass} onClick={() => setRetry((n) => n+1)}>Retry series</Button></> : series ? <DailySeries series={series} compact /> : null;
++}
+ export function InsightsTrends() {
+-  const { openSheet } = useAeri(); const { data, status, reload } = useInsights();
+-  return <><Experimental /><InsightsStatus /><FindingsList /><Panel variant="B" title="Daily series">{status === 'ready' && data?.enabled ? metricIds.map((id) => <ActionRow key={id} Icon={IconHeartLine} title={metricNames[id]} subtitle={data.series.find((s) => s.metricId === id)?.sourceId ?? 'Source not supplied'} onClick={() => openSheet(<SeriesSheet metricId={id} />)} />) : <p className="t-body">Daily analysis is unavailable.</p>}</Panel><Button variant="ghost" className={actionClass} onClick={() => void reload().catch(() => {})}>Refresh insights</Button></>;
++  const { openSheet, selectedMetric, setSelectedMetric, native } = useAeri(); const { data, reload } = useInsights(); const [days,setDays] = useState<7 | 30 | 90>(7);
++  const selected = metricIds.find((id) => id === selectedMetric) ?? 'rr'; const sample = native?.snapshot.metrics.find((m) => m.id === selected); const f = data?.findings.find((v) => v.metricId === selected); const ambiguous = sourceIsAmbiguous(data?.sourceOptions.find((o) => o.metricId === selected));
++  return <><NativeRecentChanges /><MetricChartLayout header={<><Button variant="ghost" className="t-body h-auto min-h-11 whitespace-normal px-0" onClick={() => openSheet(<SeriesSheet metricId={selected} />)}>{metricNames[selected]}</Button><ChoiceGroup label="Period" value={String(days)} options={['7','30','90'].map((v) => ({value:v,label:`${v} days`}))} onChange={(v) => setDays(v === '90' ? 90 : v === '30' ? 30 : 7)} /></>} value={<>{sample?.current ?? '—'} {sample?.unit ?? ''}</>} status={<><p className="t-meta text-aeri-slate">{ambiguous ? 'Multiple sources · Choose a source before comparing.' : f ? stateNames[f.state] : 'No comparison supplied'}</p><p className="t-meta text-aeri-slate">{sample?.source ?? 'Source not supplied'} · {sample?.sampledAt ? fmtLocal(sample.sampledAt,'en') : 'Sample time not supplied'}</p><p className="t-meta text-aeri-slate">{sample?.semantics === 'latestSample' ? selected === 'sleep' ? 'Latest asleep segment, not total nightly sleep.' : 'Latest sample, not a daily total.' : ''}</p></>}><InlineNativeSeries metricId={selected} days={days} /></MetricChartLayout>
++    {([{title:'Sleep and overnight · Device data',ids:['rr','rhr','sleep','spo2']},{title:'Activity · Device data',ids:['steps','workout']}] as const).map((group) => <section key={group.title} className="px-1"><h3 className="t-cap border-b border-aeri-line py-3 text-aeri-slate">{group.title}</h3><ul className="divide-y divide-aeri-line">{group.ids.map((id) => {const m = native?.snapshot.metrics.find((v) => v.id === id);return <li key={id}><ActionRow Icon={id === 'steps' || id === 'workout' ? IconTrends : IconBreath} title={metricNames[id]} subtitle={`${m?.source ?? 'Source not supplied'}${m?.sampledAt ? ` · ${fmtLocal(m.sampledAt,'en')}` : ''}`} trailing={<span className="t-meta max-w-28 whitespace-normal text-right tabular-nums">{m?.current ?? '—'} {m?.unit ?? ''}</span>} onClick={() => {setSelectedMetric(id);openSheet(<SeriesSheet metricId={id} />);}} /></li>;})}</ul></section>)}
++    <HistorySection title="Your entries"><ActionRow Icon={IconLog} title="Respiratory check-in" onClick={() => openSheet(<RecordEditor kind="symptom" />)} /><ActionRow Icon={IconLog} title="Peak flow" onClick={() => openSheet(<RecordEditor kind="peak" />)} /></HistorySection><HistorySection title="Environment"><p className="t-meta py-3 text-aeri-slate">Unavailable · No connected source</p></HistorySection><Button variant="ghost" className={actionClass} onClick={() => void reload().catch(() => {})}>Refresh insights</Button></>;
+ }
+ export function StructuredHistory() {
+   const { openSheet } = useAeri(); const { data, status } = useInsights();
+   const groups = data ? [{ kind: 'symptom' as const, rows: data.records.symptomCheckIns }, { kind: 'use' as const, rows: data.records.medicationUseEvents }, { kind: 'peak' as const, rows: data.records.peakFlowEntries }] : [];
+-  return <><Experimental /><InsightsStatus /><Panel variant="B" title="Your records"><div className="space-y-2">{(['symptom', 'use', 'peak'] as RecordKind[]).map((kind) => <Button key={kind} variant="ghost" className={actionClass} onClick={() => openSheet(<RecordEditor kind={kind} />)}>Add {recordNames[kind].toLowerCase()}</Button>)}</div>
++  return <><Experimental /><InsightsStatus /><HistorySection title="Your records"><div className="space-y-2">{(['symptom', 'use', 'peak'] as RecordKind[]).map((kind) => <Button key={kind} variant="ghost" className={actionClass} onClick={() => openSheet(<RecordEditor kind={kind} />)}>Add {recordNames[kind].toLowerCase()}</Button>)}</div>
+     {status === 'ready' ? groups.map(({ kind, rows }) => <div key={kind} className="mt-4"><h3 className="t-body font-semibold">{recordNames[kind]}</h3>{rows.length ? [...rows].sort((a, b) => b.date.localeCompare(a.date)).map((record) => <ActionRow key={record.id} Icon={IconLog} title={recordSummary(kind, record)} subtitle={`${fmtLocal(record.date, 'en')} · User entered`} onClick={() => openSheet(<RecordEditor kind={kind} record={record} />)} />) : <p className="t-meta text-aeri-slate">No records yet.</p>}<Divider /></div>) : null}
+-  </Panel><h2 className="t-title font-semibold">Change findings</h2><FindingsList /></>;
++  </HistorySection><h2 className="t-title font-semibold">Change findings</h2><FindingsList /></>;
+ }
+ export function ActualUseEntry() {
+   const { openSheet } = useAeri(); const { data } = useInsights();
+--- a/src/components/aeriday/screens.tsx
++++ b/src/components/aeriday/screens.tsx
+@@ -1,3 +1,6 @@
++import { NativeMeds, NativeMore } from "./NativeScreens";
++import { ActualUseEntry, AnalysisSettings } from "./PersonalInsights";
++import { DoctorVisitEntry } from "./DoctorVisit";
+ import { useState } from "react";
+ import { dict, type CopyKey, type Lang } from "@/lib/aeriday/copy";
+ import { u } from "@/lib/aeriday/copy2";
+@@ -148,8 +151,9 @@
+ export function MedsBody({ variant, lang }: Props) {
+   const c = dict[lang];
+   const k = u[lang];
+-  const { openSheet, relieverConfirmed, relieverDoses } = useAeri();
+-
++  const { openSheet, relieverConfirmed, relieverDoses, native } = useAeri();
++
++  if (native) return <NativeMeds variant={variant} lang={lang} actualUse={<ActualUseEntry />} />;
+   return (
+     <>
+       <Panel variant={variant} title={c.medsScheduleTitle}>
+@@ -385,10 +389,10 @@
+ 
+ /* ---------------- More ---------------- */
+ 
+-export function MoreBody({ variant, lang }: Props) {
++export function MoreBody({ variant, lang, hideLanguage = false }: Props & { hideLanguage?: boolean }) {
+   const c = dict[lang];
+   const k = u[lang];
+-  const { openSheet } = useAeri();
++  const { openSheet, native } = useAeri();
+   const info = (title: string, body: string[]) => () =>
+     openSheet(<InfoSheet lang={lang} title={title} body={body} />);
+ 
+@@ -422,6 +426,7 @@
+     },
+   ];
+ 
++  if (native) return <><DoctorVisitEntry /><AnalysisSettings /><NativeMore variant={variant} lang={lang} hideLanguage={hideLanguage} /></>;
+   return (
+     <>
+       {groups.map((g) => (
+--- a/src/components/aeriday/TrendsExperience.tsx
++++ b/src/components/aeriday/TrendsExperience.tsx
+@@ -1,3 +1,6 @@
++import { RecentChangesLayout, MetricChartLayout, HistorySection } from "./previewLayouts";
++import { InsightsTrends, StructuredHistory } from "./PersonalInsights";
++import { NativeHistory } from "./NativeScreens";
+ import { useState } from "react";
+ import type { Lang } from "@/lib/aeriday/copy";
+ import {
+@@ -180,18 +183,7 @@
+   const ms = getMetrics(scenario).filter((m) => m.status === "different" && m.band);
+   if (!ms.length) return null;
+   return (
+-    <section
+-      aria-label={headlines[lang].changes}
+-      className="rounded-2xl border-l-2 border-aeri-blue/50 bg-aeri-surface px-3.5 py-3"
+-    >
+-      <div className="flex flex-wrap items-center gap-2">
+-        <span aria-hidden className="size-2 rounded-full bg-aeri-blue/60" />
+-        <h2 className="t-body font-semibold">{headlines[lang].changes}</h2>
+-        <span className="t-cap rounded-full border border-aeri-line px-2 py-0.5 text-aeri-slate">
+-          {c.demo}
+-        </span>
+-      </div>
+-      <p className="t-meta text-aeri-slate">{c.night}</p>
++    <RecentChangesLayout title={headlines[lang].changes} badge={c.demo} date={c.night} onView={onView} viewLabel={c.view}>
+       <ul className="t-meta mt-2 space-y-1">
+         {ms.map((m) => (
+           <li key={m.id} className="flex flex-wrap justify-between gap-x-3">
+@@ -206,14 +198,7 @@
+           </li>
+         ))}
+       </ul>
+-      <Button
+-        variant="ghost"
+-        onClick={onView}
+-        className="t-meta mt-1 h-auto min-h-11 px-0 font-medium text-aeri-ink underline underline-offset-4"
+-      >
+-        {c.view} →
+-      </Button>
+-    </section>
++    </RecentChangesLayout>
+   );
+ }
+ function fmtWhen(date: string, lang: Lang) {
+@@ -424,11 +409,12 @@
+   );
+ }
+ export function TrendsExperience({ lang }: { lang: Lang }) {
+-  const { scenario, entries, openSheet, selectedMetric, setSelectedMetric } = useAeri();
++  const { scenario, entries, openSheet, selectedMetric, setSelectedMetric, native } = useAeri();
+   const metrics = withEntries(getMetrics(scenario), entries),
+     c = cp(lang);
+   const [period, setPeriod] = useState<7 | 30>(7);
+   const m = metrics.find((v) => v.id === selectedMetric) ?? metrics[0];
++  if (native) return <InsightsTrends />;
+   if (!m) return null;
+   return (
+     <>
+@@ -461,8 +447,7 @@
+           openSheet(<MetricDetail id="rr" lang={lang} />);
+         }}
+       />
+-      <section className="rounded-2xl bg-aeri-surface px-3.5 py-3">
+-        <div className="flex flex-wrap items-center justify-between gap-2">
++      <MetricChartLayout header={<>
+           <Button
+             variant="ghost"
+             className="t-body h-auto min-h-11 whitespace-normal px-0 text-aeri-ink"
+@@ -471,14 +456,12 @@
+             {lang === "zh" ? m.zh : m.en}
+           </Button>
+           <Period value={period} onChange={setPeriod} lang={lang} />
+-        </div>
+-        <p className="t-title font-semibold">{metricValue(m, lang)}</p>
+-        <div className="mb-3"><StatusLine m={m} lang={lang} />
++        </>} value={metricValue(m, lang)} status={<><StatusLine m={m} lang={lang} />
+           {isNativeData() ? <p className="t-meta text-aeri-slate">{source(m, lang)} · {m.sampledAt ? fmtLocal(m.sampledAt, lang) : nc[lang].sampleTimeUnknown}</p> : null}
+           {isNativeData() && m.semantics === "latestSample" ? <p className="t-meta text-aeri-slate">{m.id === "sleep" ? nc[lang].sleepSegmentInfo : nc[lang].notAggregate}</p> : null}
+-        </div>
++        </>}>
+         <MetricChart m={m} period={period} lang={lang} />
+-      </section>
++      </MetricChartLayout>
+       {(["overnight", "activity", "records", "environment"] as const).map((group) => (
+         <section key={group} className="px-1">
+           <h3 className="t-cap border-b border-aeri-line py-3 text-aeri-slate">
+@@ -652,10 +635,11 @@
+   );
+ }
+ export function HistoryExperience({ lang }: { lang: Lang }) {
+-  const { scenario, logs, openSheet } = useAeri();
++  const { scenario, logs, openSheet, native } = useAeri();
+   const c = cp(lang);
+   const metrics = getMetrics(scenario);
+   const rr = metrics.find((m) => m.id === "rr");
++  if (native) return <><StructuredHistory /><NativeHistory variant="B" lang={lang} /></>;
+   return (
+     <>
+       <div className="flex justify-end">
+@@ -667,10 +651,7 @@
+           + {c.add}
+         </Button>
+       </div>
+-      <section>
+-        <h2 className="t-cap border-b border-aeri-line py-2 text-aeri-slate">
+-          {lang === "zh" ? "8 月 4 日" : "Aug 4"}
+-        </h2>
++      <HistorySection title={lang === "zh" ? "8 月 4 日" : "Aug 4"}>
+         {logs.map((l, i) => (
+           <ActionRow
+             key={i}
+@@ -695,18 +676,15 @@
+           subtitle={`${c.manualOne} · 08:00`}
+           onClick={() => openSheet(<MetricDetail id="controller" lang={lang} />)}
+         />
+-      </section>
+-      <section>
+-        <h2 className="t-cap border-b border-aeri-line py-2 text-aeri-slate">
+-          {lang === "zh" ? "8 月 3 日" : "Aug 3"}
+-        </h2>
++      </HistorySection>
++      <HistorySection title={lang === "zh" ? "8 月 3 日" : "Aug 3"}>
+         <ActionRow
+           Icon={IconLog}
+           title={lang === "zh" ? "咳嗽 · 轻度" : "Cough · mild"}
+           subtitle={`${c.manualOne} · 08:05`}
+           onClick={() => openSheet(<MetricDetail id="symptoms" lang={lang} />)}
+         />
+-      </section>
++      </HistorySection>
+     </>
+   );
+ }
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -13,7 +13,7 @@
+ - Keep entries in the in-memory provider for the web prototype; only the iOS shell persists, via the allowlisted aeriBridge in src/lib/aeriday/nativeBridge.ts, so health data never leaves the device.
+ - Build the iOS bundle from mobile/ with its own Vite config (build:mobile → dist-mobile/), reusing src components unchanged, so the SSR web app stays untouched.
+ - Mobile Chinese text uses the vendored, CJK-range-limited font in mobile/fonts/ imported only by mobile/mobile.css (license copied to dist-mobile/licenses/), because WKWebView system fallback rendered missing glyphs; never use remote fonts or local() for CJK.
+-- In native mode, factual samples come from getSnapshot and insights/structured records from validated getInsights through InsightsProvider; reuse NativeScreens and existing primitives, keep separate loading/errors and never fall back to demos, so Swift remains the only personal-analysis authority.
++- Both data modes enter the preview's TodayBody/MedsBody/TrendsExperience/HistoryExperience/MoreBody; share layout-only shells from previewLayouts and keep native editors/services as data adapters, so native UI retains preview composition without copying prototype facts. Swift remains the personal-analysis authority through getSnapshot/getInsights with separate loading/error states and no demo fallback.
+ - Use dedicated Trends/History views and a shared metric detail sheet, so every metric uses the same dates, period controls and source/gap handling.
+ - Reconcile native writes through nativeOperations before reporting outcomes; multi-step writes may partially commit.
+ - Keep native theme/text preferences session-only; the current English trial applies a mobile-only presentation language policy without writing Swift preferences, and hides native language selectors while preserving web bilingual controls.
+--- a/roadmap.md
++++ b/roadmap.md
+@@ -44,7 +44,7 @@
+ - [x] Deliver paired guides and complete v7 source/offline archives
+ 
+ ## Native v8 visual parity
+-- [ ] Reuse preview Today, medication, Trends, History and More layouts with native data/operation adapters
+-- [ ] Preserve all v6/v7 contracts and CRUD; design honest unavailable states without fabricated facts
+-- [ ] Verify synthetic native parity, empty/error states, large text and existing regressions
+-- [ ] Deliver paired v8 guides, explicit diff, full source and offline ZIPs
++- [x] Reuse preview Today, medication, Trends, History and More layouts with native data/operation adapters
++- [x] Preserve all v6/v7 contracts and CRUD; design honest unavailable states without fabricated facts
++- [x] Verify synthetic native parity, empty/error states, large text and existing regressions
++- [x] Deliver paired v8 guides, explicit diff, full source and offline ZIPs
+--- /dev/null
++++ b/src/components/aeriday/previewLayouts.tsx
+@@ -0,0 +1,19 @@
++import type { ReactNode } from 'react';
++import { Button } from '@/components/ui/button';
++
++/** The preview's open dashboard sections, reused by both data modes. */
++export function DashboardBlock({ title, meta, info, children }: { title: string; meta?: string; info?: ReactNode; children: ReactNode }) {
++  return <section className="border-t border-aeri-line pt-3.5"><div className="flex items-center gap-1"><h3 className="t-cap text-aeri-slate">{title}</h3>{info}{meta ? <span className="t-meta ml-auto shrink-0 text-aeri-slate">{meta}</span> : null}</div><div className="mt-2">{children}</div></section>;
++}
++export function AirflowMotif() {
++  return <svg viewBox="0 0 200 80" aria-hidden="true" className="pointer-events-none absolute -top-3 right-0 h-16 w-44 text-aeri-blue opacity-[0.12]" fill="none"><path d="M4 22c34-14 62 10 96 0 18-5 30-14 46-10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M12 42c38-12 66 12 100 2 16-5 28-12 44-8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><path d="M28 62c32-10 58 8 88 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>;
++}
++export function RecentChangesLayout({ title, badge, date, children, onView, viewLabel }: { title: string; badge: string; date: string; children: ReactNode; onView: () => void; viewLabel: string }) {
++  return <section aria-label={title} className="rounded-2xl border-l-2 border-aeri-blue/50 bg-aeri-surface px-3.5 py-3"><div className="flex flex-wrap items-center gap-2"><span aria-hidden className="size-2 rounded-full bg-aeri-blue/60" /><h2 className="t-body font-semibold">{title}</h2><span className="t-cap rounded-full border border-aeri-line px-2 py-0.5 text-aeri-slate">{badge}</span></div><p className="t-meta text-aeri-slate">{date}</p>{children}<Button variant="ghost" onClick={onView} className="t-meta mt-1 h-auto min-h-11 px-0 font-medium text-aeri-ink underline underline-offset-4">{viewLabel} →</Button></section>;
++}
++export function MetricChartLayout({ header, value, status, children }: { header: ReactNode; value: ReactNode; status: ReactNode; children: ReactNode }) {
++  return <section className="rounded-2xl bg-aeri-surface px-3.5 py-3"><div className="flex flex-wrap items-center justify-between gap-2">{header}</div><p className="t-title font-semibold">{value}</p><div className="mb-3">{status}</div>{children}</section>;
++}
++export function HistorySection({ title, children }: { title: string; children: ReactNode }) {
++  return <section><h2 className="t-cap border-b border-aeri-line py-2 text-aeri-slate">{title}</h2>{children}</section>;
++}--- /dev/null
++++ b/mobile/tests/check_v8.py
+@@ -0,0 +1,24 @@
++import asyncio
++from pathlib import Path
++from playwright.async_api import async_playwright
++OUT=Path('/tmp/browser/aeriday-v8'); ROOT=Path(__file__).parent
++async def main():
++ async with async_playwright() as p:
++  b=await p.chromium.launch(headless=True)
++  for width,large,dark in [(390,False,False),(320,True,True)]:
++   c=await b.new_context(viewport={'width':width,'height':844},color_scheme='dark' if dark else 'light');await c.add_init_script(path=str(ROOT/'syntheticBridge.js'));page=await c.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)));await page.goto('http://localhost:8090');await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
++   if large:await page.get_by_role('button',name='Text',exact=True).click()
++   for tab in ['Today','Medications','Trends','History','More']:
++    await page.get_by_role('navigation').get_by_role('button',name=tab,exact=True).click();await page.wait_for_timeout(80);await page.screenshot(path=str(OUT/f'{tab}-{width}.png'))
++    small=await page.evaluate('''()=>[...document.querySelectorAll('button,input,select,textarea,summary')].filter(e=>e.getClientRects().length&&!e.disabled).map(e=>({name:e.getAttribute('aria-label')||e.innerText,w:e.getBoundingClientRect().width,h:e.getBoundingClientRect().height})).filter(e=>e.w<43.9||e.h<43.9)''');assert not small,small
++    assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth')
++   await page.get_by_role('navigation').get_by_role('button',name='Today',exact=True).click()
++   for label in ['Health trends','Action plan','Anything unusual today?','Ask AI · Unavailable']:
++    await page.get_by_text(label,exact=True).scroll_into_view_if_needed()
++   await page.screenshot(path=str(OUT/f'Today-bottom-{width}.png'))
++   await page.get_by_role('button',name='Action plan',exact=False).click();await page.get_by_text('No clinician-authored action plan is supplied',exact=False).wait_for();await page.screenshot(path=str(OUT/f'Plan-empty-{width}.png'));await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
++   await page.evaluate("window.__snapshot.isDemo=false;window.__snapshot.metrics=[];window.__snapshot.medications=[];window.__insights.isDemo=false;window.__insights.findings=[]")
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_text('No findings supplied. This does not mean it is safe to wait.',exact=True).wait_for();await page.get_by_role('navigation').get_by_role('button',name='Today',exact=True).click();await page.get_by_text('Personal data',exact=True).wait_for();assert await page.get_by_text('Trial inhaler',exact=True).count()==0;assert await page.get_by_text('18 breaths/min',exact=False).count()==0;await page.screenshot(path=str(OUT/f'Personal-empty-{width}.png'));assert not errors,errors
++   print('PASS v8 five tabs, 44px targets, composition, unavailable plan and personal empty:',width);await c.close()
++  c=await b.new_context(viewport={'width':390,'height':844});page=await c.new_page();await page.goto('http://localhost:8080');await page.get_by_role('navigation').first.wait_for();await page.screenshot(path=str(OUT/'browser-reference.png'));await b.close()
++asyncio.run(main())
+--- a/mobile/tests/check_v6.py
++++ b/mobile/tests/check_v6.py
+@@ -31,9 +31,9 @@
+    await page.get_by_role('navigation').get_by_role('button',name='Medications',exact=True).click();await page.get_by_role('button',name='Record actual use',exact=True).click();await page.get_by_label('Medication name',exact=True).fill('Trial inhaler');await page.get_by_label('Amount used',exact=True).fill('2');await audit();await page.screenshot(path=str(SCREENSHOTS/f'use-{width}.png'));await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();assert await page.evaluate('window.__snapshot.medications[0].remainingDoses')==120
+    await page.get_by_role('button',name='Trial inhaler · 2 puff').click();await page.get_by_label('Amount used',exact=True).fill('3');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_role('button',name='Trial inhaler · 3 puff').click();await page.get_by_role('button',name='Delete record',exact=True).click();await page.get_by_role('button',name='Confirm delete record',exact=True).click()
+    await page.get_by_role('button',name='Edit',exact=True).click();await page.get_by_role('group',name='Reminder',exact=True).get_by_role('button',name='On',exact=True).click();await page.get_by_label('Reminder time (HH:MM)',exact=True).fill('08:00');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click()
+-   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=False).last.click();await page.get_by_role('button',name='90 days',exact=True).click();await page.get_by_role('img',name='Respiratory rate daily series',exact=False).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'series-{width}.png'));await audit();await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=False).last.click();await page.get_by_role('dialog').get_by_role('button',name='90 days',exact=True).click();await page.get_by_role('dialog').get_by_role('img',name='Respiratory rate daily series',exact=False).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'series-{width}.png'));await audit();await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
+    await page.get_by_role('navigation').get_by_role('button',name='More',exact=True).click();await audit();await page.screenshot(path=str(SCREENSHOTS/f'more-{width}.png'));await page.get_by_role('group',name='Analysis',exact=True).get_by_role('button',name='Off',exact=True).click();await page.wait_for_timeout(100);assert await page.evaluate('window.__insights.enabled')==False;await page.get_by_role('group',name='Analysis',exact=True).get_by_role('button',name='On',exact=True).click();await page.wait_for_timeout(100)
+-   await page.get_by_role('navigation').get_by_role('button',name='History',exact=True).click();await page.get_by_role('button',name='Add respiratory check-in',exact=True).click();await page.evaluate('window.__failWrite=true');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_text('The change may have saved. Check the current records before retrying.',exact=True).wait_for();await page.get_by_role('dialog').get_by_role('button',name='Cancel',exact=True).click();assert await page.evaluate('window.__insights.records.symptomCheckIns.length')==1
++   await page.get_by_role('navigation').get_by_role('button',name='History',exact=True).click();await page.get_by_role('button',name='Add respiratory check-in',exact=True).click();await page.evaluate('window.__failWrite=true');await page.get_by_role('dialog').get_by_role('button',name='Save',exact=True).click();await page.get_by_text('Could not complete the change. Current records refreshed; check for a partial save before retrying.',exact=True).wait_for();await page.get_by_role('dialog').get_by_role('button',name='Cancel',exact=True).click();assert await page.evaluate('window.__insights.records.symptomCheckIns.length')==1
+    await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.evaluate("window.__case='empty'");await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_text('No findings supplied. This does not mean it is safe to wait.',exact=True).wait_for();await page.evaluate("window.__case='error'");await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_role('button',name='Retry insights',exact=True).wait_for();await page.screenshot(path=str(SCREENSHOTS/f'error-{width}.png'));await page.evaluate("window.__case='changes'");await page.get_by_role('button',name='Retry insights',exact=True).click();await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
+    assert not errors,errors
+    calls=await page.evaluate('window.__calls.map(r=>r.method)');assert 'setLanguage' not in calls
+--- a/mobile/tests/check_sources.py
++++ b/mobile/tests/check_sources.py
+@@ -10,12 +10,12 @@
+   for width in [390,320]:
+    context=await browser.new_context(viewport={'width':width,'height':844},color_scheme='dark');await context.add_init_script(path=str(ROOT/'syntheticBridge.js'));page=await context.new_page();await page.goto('http://localhost:8090');await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
+    if width==320:await page.get_by_role('button',name='Text',exact=True).click()
+-   await page.get_by_text('Symptoms reported: Yes · Change assessment: Not established',exact=True).wait_for()
++   assert await page.evaluate('window.__insights.context.reportedRespiratoryChange') is False
+    await page.get_by_role('navigation').get_by_role('button',name='More',exact=True).click();group=page.get_by_role('group',name='Respiratory rate source',exact=True);assert await group.get_by_role('button').count()==3
+    await group.get_by_role('button',name='Automatic',exact=True).click();await page.get_by_text('Multiple sources · Choose a source. No sources are merged.',exact=True).wait_for();assert await page.evaluate('window.__insights.sourceOptions[0].selectedSourceId') is None
+-   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_text('Respiratory rate: Multiple sources · Choose a source in More.',exact=True).wait_for();await page.get_by_role('button',name='Respiratory rate',exact=False).click();await page.get_by_text('Multiple sources · Choose a source in More. No sources are merged.',exact=True).wait_for();assert await page.get_by_role('img').count()==0;await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_text('Respiratory rate: Multiple sources · Choose a source in More.',exact=True).wait_for();await page.get_by_role('button',name='Respiratory rate',exact=True).first.click();await page.get_by_role('dialog').get_by_text('Multiple sources · Choose a source in More. No sources are merged.',exact=True).wait_for();assert await page.get_by_role('img').count()==0;await page.get_by_role('dialog').get_by_role('button',name='Close',exact=True).click()
+    await page.get_by_role('navigation').get_by_role('button',name='More',exact=True).click();await page.evaluate('window.__failWrite=true');await group.get_by_role('button',name='Synthetic phone',exact=True).click();await page.get_by_text('Could not complete the change. Current records refreshed; check for a partial save before retrying.',exact=True).wait_for();assert await group.get_by_role('button',name='Synthetic phone',exact=True).get_attribute('aria-pressed')=='true';await group.screenshot(path=str(OUT/f'source-{width}.png'))
+-   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=False).click();await page.get_by_text('MAD: 1 breaths/min · 24 valid days',exact=True).wait_for();assert await page.get_by_text('Experimental historical reference band:',exact=False).count()==0
+-   await page.evaluate('window.__band=true');await page.get_by_role('button',name='30 days',exact=True).click();await page.get_by_text('Experimental historical reference band:',exact=False).wait_for();await page.screenshot(path=str(OUT/f'reference-{width}.png'));assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth');print('PASS sources, ambiguity, partial readback, reference/band',width);await context.close()
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=True).first.click();await page.get_by_text('MAD: 1 breaths/min · 24 valid days',exact=True).wait_for();assert await page.get_by_text('Experimental historical reference band:',exact=False).count()==0
++   await page.evaluate('window.__band=true');await page.get_by_role('dialog').get_by_role('button',name='30 days',exact=True).click();await page.get_by_role('dialog').get_by_text('Experimental historical reference band:',exact=False).wait_for();await page.screenshot(path=str(OUT/f'reference-{width}.png'));assert await page.evaluate('document.documentElement.scrollWidth<=innerWidth');print('PASS sources, ambiguity, partial readback, reference/band',width);await context.close()
+   await browser.close()
+ asyncio.run(main())
+--- a/mobile/tests/check_review.py
++++ b/mobile/tests/check_review.py
+@@ -13,7 +13,7 @@
+    await page.goto('http://localhost:8090');await page.get_by_text('A synthetic sustained personal change.',exact=True).wait_for()
+    if width==320:await page.get_by_role('button',name='Text',exact=True).click()
+    await page.evaluate("window.__insights.series[0].reference.reviewReason='Deleted reference input'; window.__insights.series[0].referenceBand={lower:13,upper:17}; window.__insights.findings[0].state='baselineReviewNeeded'")
+-   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_text('Reference needs review · 3 days',exact=True).wait_for()
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Refresh insights',exact=True).click();await page.get_by_text('Reference needs review',exact=True).first.wait_for()
+    await page.get_by_role('navigation').get_by_role('button',name='More',exact=True).click()
+    await page.get_by_text('Reference needs review: Deleted reference input',exact=True).wait_for()
+    assert await page.get_by_text('Experimental historical reference band:',exact=False).count()==0
+@@ -35,7 +35,7 @@
+    assert await page.evaluate('window.__insights.series[0].reference.reviewReason') is None
+    # Series charts receive same review metadata and must not draw the band.
+    await page.evaluate("window.__insights.series[0].reference.reviewReason='Deleted reference input';window.__band=true")
+-   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=False).click()
++   await page.get_by_role('navigation').get_by_role('button',name='Trends',exact=True).click();await page.get_by_role('button',name='Respiratory rate',exact=True).first.click()
+    await page.get_by_text('Reference needs review: Deleted reference input',exact=True).wait_for()
+    assert await page.get_by_text('Experimental historical reference band:',exact=False).count()==0
+    assert await page.locator('.recharts-reference-area').count()==0
