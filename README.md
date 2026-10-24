@@ -1,8 +1,8 @@
 # Asthma Helper
 
-**A clearer history between asthma appointments.**
+**Helping people live more comfortably with asthma, one ordinary day at a time.**
 
-A person may remember a difficult week but forget which evenings felt uncomfortable, when they used an inhaler, or what they wanted to ask their doctor. Asthma Helper brings those observations into a reviewable history and appointment summary.
+Before a walk, someone may overlook changes in pollen or air quality. After an uncomfortable night, they may find it hard to describe what felt different. An inhaler can need replacing sooner than expected. Asthma Helper brings daily environmental context, medication and supply information, personal observations, and trends together to support ordinary life with asthma. A doctor-visit summary is one supporting feature.
 
 This Hackachusetts snapshot contains **two related implementations**. Lovable developed the frontend; Kiro developed the native backend; Codex coordinated tasks, integration, and verification. It builds on an existing concept and codebase. Backend report work, contracts, integration fixes, specs/steering, and synthetic-scenario improvements were the event contributions. We do not claim the entire product was written from scratch during the event.
 
